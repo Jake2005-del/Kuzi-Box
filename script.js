@@ -4,7 +4,7 @@ const SUPABASE_ANON_KEY = 'sb_publishable_YvfEOPqg2IEVqzQ-p4Fylw_C2AeEkdj';
 
 const supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
-let userSession = { id: null, email: "", username: "", kuziCoins: 10, isVip: false, streakCount: 0, refCode: "", lastSpinTime: null };
+let userSession = { id: null, email: "", username: "", kuziCoins: 10, isVip: false, vipActivatedAt: null, vipExpiresAt: null, streakCount: 0, refCode: "", lastSpinTime: null };
 let activeMovie = null;
 let activeCategoryTag = "Movie";
 let activeServer = 'alldebrid';
@@ -222,7 +222,7 @@ let goldenSpinRotation = 0;
 const mobileDiscoverCache = new Map();
 let activeCatalogRequests = 0;
 const catalogRequestWaiters = [];
-const CATALOG_ROTATION_WINDOW_MS = 3 * 24 * 60 * 60 * 1000;
+const CATALOG_ROTATION_WINDOW_MS = 24 * 60 * 60 * 1000;
 const CATALOG_ROTATION_SORTS = ['popularity.desc', 'vote_average.desc', 'vote_count.desc', 'date.desc'];
 let activeCatalogRotationSlot = Math.floor(Date.now() / CATALOG_ROTATION_WINDOW_MS);
 
@@ -277,9 +277,9 @@ function captureReferralCode() {
 
 function sortByYearPriority(items) {
     return [...items].sort((a, b) => {
-        const aYear = Number((a.release_date || a.first_air_date || '').slice(0, 4)) || 0;
-        const bYear = Number((b.release_date || b.first_air_date || '').slice(0, 4)) || 0;
-        if (bYear !== aYear) return bYear - aYear;
+        const aDate = a.release_date || a.first_air_date || '';
+        const bDate = b.release_date || b.first_air_date || '';
+        if (bDate !== aDate) return bDate.localeCompare(aDate);
         return Number(b.popularity || 0) - Number(a.popularity || 0);
     });
 }
@@ -310,9 +310,11 @@ function normalizeCategoryItems(items, fallbackMediaType = 'movie', groupKey = '
         }));
 }
 
-async function fetchCollectionByQuery({ mediaType, params = {}, extraFilters = [], rotationOffset = 0, contentOptions = {} }) {
+async function fetchCollectionByQuery({ mediaType, params = {}, extraFilters = [], rotationOffset = 0, contentOptions = {}, latestFirst = false }) {
     const rotation = getCatalogRotationConfig(rotationOffset);
-    const sortBy = rotation.sortBy === 'date.desc'
+    const sortBy = latestFirst
+        ? (mediaType === 'tv' ? 'first_air_date.desc' : 'primary_release_date.desc')
+        : rotation.sortBy === 'date.desc'
         ? (mediaType === 'tv' ? 'first_air_date.desc' : 'primary_release_date.desc')
         : rotation.sortBy;
     const query = new URLSearchParams({
@@ -320,7 +322,7 @@ async function fetchCollectionByQuery({ mediaType, params = {}, extraFilters = [
         sort_by: sortBy,
         'vote_average.gte': String(contentOptions.minimumRating ?? 6),
         'vote_count.gte': String(contentOptions.minimumVotes ?? 20),
-        page: String(rotation.page)
+        page: latestFirst ? '1' : String(rotation.page)
     });
 
     Object.entries(params).forEach(([key, value]) => {
@@ -355,16 +357,17 @@ async function fetchCollectionByQuery({ mediaType, params = {}, extraFilters = [
 async function fetchAllCategoriesCatalog() {
     try {
         const latestDate = new Date().toISOString().slice(0, 10);
-        const recentDate = `${new Date().getFullYear() - 2}-01-01`;
+        const currentYear = new Date().getFullYear();
+        const recentDate = `${currentYear - 1}-01-01`;
 
         const [latestMovies, latestTv, trendingMovies, trendingTv, cDrama, kDrama, tvShows, anime, southIndian, bollywood] = await Promise.all([
             fetchCollectionByQuery({
                 mediaType: 'movie',
                 rotationOffset: 0,
-                contentOptions: { minimumVotes: 5, minimumRating: 5 },
+                latestFirst: true,
+                contentOptions: { minimumVotes: 5, minimumRating: 6 },
                 params: {
                     sort_by: 'primary_release_date.desc',
-                    page: String((getCatalogRotationSlot() % 2) + 1),
                     'primary_release_date.gte': recentDate,
                     'primary_release_date.lte': latestDate
                 }
@@ -372,10 +375,10 @@ async function fetchAllCategoriesCatalog() {
             fetchCollectionByQuery({
                 mediaType: 'tv',
                 rotationOffset: 1,
-                contentOptions: { minimumVotes: 5, minimumRating: 5 },
+                latestFirst: true,
+                contentOptions: { minimumVotes: 5, minimumRating: 6 },
                 params: {
                     sort_by: 'first_air_date.desc',
-                    page: String(((getCatalogRotationSlot() + 1) % 2) + 1),
                     'first_air_date.gte': recentDate,
                     'first_air_date.lte': latestDate
                 }
@@ -383,52 +386,60 @@ async function fetchAllCategoriesCatalog() {
             fetchCollectionByQuery({
                 mediaType: 'movie',
                 rotationOffset: 2,
+                latestFirst: true,
                 params: {
-                    'primary_release_date.gte': `${new Date().getFullYear() - 4}-01-01`,
+                    'primary_release_date.gte': recentDate,
+                    'primary_release_date.lte': latestDate,
                     'vote_average.gte': 7
                 }
             }),
             fetchCollectionByQuery({
                 mediaType: 'tv',
                 rotationOffset: 3,
+                latestFirst: true,
                 params: {
-                    'first_air_date.gte': `${new Date().getFullYear() - 4}-01-01`,
+                    'first_air_date.gte': recentDate,
+                    'first_air_date.lte': latestDate,
                     'vote_average.gte': 7
                 }
             }),
             fetchCollectionByQuery({
                 mediaType: 'tv',
                 rotationOffset: 4,
-                params: { with_origin_country: 'CN', with_original_language: 'zh' },
+                latestFirst: true,
+                params: { with_origin_country: 'CN', with_original_language: 'zh', 'first_air_date.gte': recentDate, 'first_air_date.lte': latestDate },
                 extraFilters: [item => !((item.genre_ids || []).includes(16))]
             }),
             fetchCollectionByQuery({
                 mediaType: 'tv',
                 rotationOffset: 5,
-                params: { with_origin_country: 'KR', with_original_language: 'ko' },
+                latestFirst: true,
+                params: { with_origin_country: 'KR', with_original_language: 'ko', 'first_air_date.gte': recentDate, 'first_air_date.lte': latestDate },
                 extraFilters: [item => !((item.genre_ids || []).includes(16))]
             }),
             fetchCollectionByQuery({
                 mediaType: 'tv',
                 rotationOffset: 6,
-                params: { with_origin_country: 'US' },
+                latestFirst: true,
+                params: { with_origin_country: 'US', 'first_air_date.gte': recentDate, 'first_air_date.lte': latestDate },
                 extraFilters: [item => !((item.genre_ids || []).includes(16))]
             }),
             fetchCollectionByQuery({
                 mediaType: 'tv',
                 rotationOffset: 7,
-                params: { with_genres: 16, with_origin_country: 'JP', with_original_language: 'ja' },
+                latestFirst: true,
+                params: { with_genres: 16, with_origin_country: 'JP', with_original_language: 'ja', 'first_air_date.gte': recentDate, 'first_air_date.lte': latestDate },
                 extraFilters: [item => (item.genre_ids || []).includes(16)]
             }),
             fetchCollectionByQuery({
                 mediaType: 'movie',
                 rotationOffset: 8,
-                contentOptions: { minimumVotes: 2, minimumRating: 4.5 },
+                latestFirst: true,
+                contentOptions: { minimumVotes: 2, minimumRating: 6 },
                 params: {
                     with_origin_country: 'IN',
                     sort_by: 'primary_release_date.desc',
-                    page: String((getCatalogRotationSlot() % 2) + 1),
-                    'primary_release_date.gte': `${new Date().getFullYear() - 4}-01-01`,
+                    'primary_release_date.gte': recentDate,
                     'primary_release_date.lte': latestDate
                 },
                 extraFilters: [item => ['ta', 'te', 'ml', 'kn'].includes(String(item.original_language || '').toLowerCase())]
@@ -436,13 +447,13 @@ async function fetchAllCategoriesCatalog() {
             fetchCollectionByQuery({
                 mediaType: 'movie',
                 rotationOffset: 9,
-                contentOptions: { minimumVotes: 2, minimumRating: 4.5 },
+                latestFirst: true,
+                contentOptions: { minimumVotes: 2, minimumRating: 6 },
                 params: {
                     with_original_language: 'hi',
                     with_origin_country: 'IN',
                     sort_by: 'primary_release_date.desc',
-                    page: String(((getCatalogRotationSlot() + 1) % 2) + 1),
-                    'primary_release_date.gte': `${new Date().getFullYear() - 4}-01-01`,
+                    'primary_release_date.gte': recentDate,
                     'primary_release_date.lte': latestDate
                 },
                 extraFilters: [item => String(item.original_language || '').toLowerCase() === 'hi']
@@ -450,8 +461,8 @@ async function fetchAllCategoriesCatalog() {
         ]);
 
         const latestList = sortByYearPriority([
-            ...normalizeCategoryItems(latestMovies, 'movie', 'latest', { minimumVotes: 5, minimumRating: 5 }),
-            ...normalizeCategoryItems(latestTv, 'tv', 'latest', { minimumVotes: 5, minimumRating: 5 })
+            ...normalizeCategoryItems(latestMovies, 'movie', 'latest', { minimumVotes: 5, minimumRating: 6 }),
+            ...normalizeCategoryItems(latestTv, 'tv', 'latest', { minimumVotes: 5, minimumRating: 6 })
         ]).slice(0, 18);
         const trendingList = sortByYearPriority([
             ...normalizeCategoryItems(trendingMovies, 'movie', 'trending'),
@@ -461,10 +472,10 @@ async function fetchAllCategoriesCatalog() {
         const kDramaList = sortByYearPriority(normalizeCategoryItems(kDrama, 'tv', 'kdrama')).slice(0, 18);
         const showsList = sortByYearPriority(normalizeCategoryItems(tvShows, 'tv', 'shows')).slice(0, 18);
         const animeList = sortByYearPriority(normalizeCategoryItems(anime, 'tv', 'anime')).slice(0, 18);
-        const southIndianList = sortByYearPriority(normalizeCategoryItems(southIndian, 'movie', 'southindian', { minimumVotes: 2, minimumRating: 4.5 })).slice(0, 18);
-        const bollywoodList = sortByYearPriority(normalizeCategoryItems(bollywood, 'movie', 'bollywood', { minimumVotes: 2, minimumRating: 4.5 })).slice(0, 18);
+        const southIndianList = sortByYearPriority(normalizeCategoryItems(southIndian, 'movie', 'southindian', { minimumVotes: 2, minimumRating: 6 })).slice(0, 18);
+        const bollywoodList = sortByYearPriority(normalizeCategoryItems(bollywood, 'movie', 'bollywood', { minimumVotes: 2, minimumRating: 6 })).slice(0, 18);
 
-        heroItems = [...latestList, ...trendingList, ...cDramaList, ...kDramaList].slice(0, 8);
+        heroItems = latestList.slice(0, 8);
         if (heroItems.length > 0) {
             setupHeroBanner(heroItems[0]);
             startHeroAutoplay();
@@ -978,12 +989,17 @@ async function fetchUserProfile(user) {
     if (data) {
         userSession.kuziCoins = data.kuzi_coins ?? 10;
         userSession.isVip = data.is_vip ?? false;
+        userSession.vipActivatedAt = data.vip_activated_at || null;
+        userSession.vipExpiresAt = data.vip_expires_at || null;
         userSession.lastSpinTime = data.last_spin_time || null;
         const vipExpiryKey = `kuzi_vip_expires_${user.id}`;
         const vipActivatedKey = `kuzi_vip_activated_${user.id}`;
-        let vipExpiry = Number(localStorage.getItem(vipExpiryKey) || 0);
-        const vipActivatedAt = Number(localStorage.getItem(vipActivatedKey) || 0);
-        const serverVipActivatedAt = Number(user.user_metadata?.kuzi_vip_activated_at || 0);
+        let vipExpiry = Date.parse(userSession.vipExpiresAt || "") || Number(localStorage.getItem(vipExpiryKey) || 0);
+        const vipActivatedAt = Date.parse(userSession.vipActivatedAt || "") || Number(localStorage.getItem(vipActivatedKey) || 0);
+        const legacyVipActivatedValue = user.user_metadata?.kuzi_vip_activated_at;
+        const serverVipActivatedAt = Number.isFinite(Number(legacyVipActivatedValue))
+            ? Number(legacyVipActivatedValue)
+            : Date.parse(legacyVipActivatedValue || "") || 0;
         if (!vipExpiry && serverVipActivatedAt) {
             vipExpiry = serverVipActivatedAt + 7 * 24 * 60 * 60 * 1000;
             localStorage.setItem(vipActivatedKey, String(serverVipActivatedAt));
@@ -1001,6 +1017,7 @@ async function fetchUserProfile(user) {
             localStorage.removeItem(vipExpiryKey);
             await supabaseClient.from("profiles").update({ is_vip: false }).eq("id", user.id);
         }
+        if (userSession.isVip && vipExpiry) userSession.vipExpiresAt = new Date(vipExpiry).toISOString();
         const localStreak = getStreakState();
         const serverLastCheckin = data.last_checkin || (data.streak_count && localStreak.lastClaimDate ? localStreak.lastClaimDate : "");
         userSession.streakCount = data.streak_count ?? 0;
@@ -1090,15 +1107,20 @@ function updateVipStatusLabel(statusText = null) {
         status.innerText = statusText;
         return;
     }
-    const expiry = Number(localStorage.getItem(`kuzi_vip_expires_${userSession.id}`) || 0);
+    const expiry = Date.parse(userSession.vipExpiresAt || "") || Number(localStorage.getItem(`kuzi_vip_expires_${userSession.id}`) || 0);
     status.innerText = userSession.isVip && (!expiry || Date.now() < expiry) ? "Active" : "Inactive";
 }
 
 async function saveVipActivation(accountId = userSession.id) {
-    const activatedAt = Date.now();
-    const expiry = activatedAt + 7 * 24 * 60 * 60 * 1000;
+    const activatedAt = new Date().toISOString();
+    const expiry = new Date(Date.parse(activatedAt) + 7 * 24 * 60 * 60 * 1000).toISOString();
+    userSession.vipActivatedAt = activatedAt;
+    userSession.vipExpiresAt = expiry;
     localStorage.setItem(`kuzi_vip_activated_${accountId}`, String(activatedAt));
-    localStorage.setItem(`kuzi_vip_expires_${accountId}`, String(expiry));
+    localStorage.setItem(`kuzi_vip_expires_${accountId}`, String(Date.parse(expiry)));
+    if (supabaseClient && accountId) {
+        await supabaseClient.from("profiles").update({ vip_activated_at: activatedAt, vip_expires_at: expiry, is_vip: true }).eq("id", accountId);
+    }
     if (supabaseClient) {
         await supabaseClient.auth.updateUser({ data: { kuzi_vip_activated_at: activatedAt } });
     }
@@ -1115,8 +1137,8 @@ function updateVipCountdown() {
     const button = document.getElementById("buyVipBtn");
     const dates = document.getElementById("vipDates");
     if (!countdown || !button) return;
-    const expiry = Number(localStorage.getItem(`kuzi_vip_expires_${userSession.id}`) || 0);
-    const activatedAt = Number(localStorage.getItem(`kuzi_vip_activated_${userSession.id}`) || 0);
+    const expiry = Date.parse(userSession.vipExpiresAt || "") || Number(localStorage.getItem(`kuzi_vip_expires_${userSession.id}`) || 0);
+    const activatedAt = Date.parse(userSession.vipActivatedAt || "") || Number(localStorage.getItem(`kuzi_vip_activated_${userSession.id}`) || 0);
     if (!userSession.isVip || !expiry) {
         const statusText = userSession.isVip ? "Active (expiry not recorded)" : "Inactive";
         countdown.innerText = userSession.isVip ? "VIP Pass: Active, expiry not recorded" : "VIP Pass: Not active";
@@ -1428,7 +1450,10 @@ document.getElementById("spinWheelBtn").addEventListener("click", async () => {
 
 function formatCooldown(milliseconds) {
     const totalSeconds = Math.ceil(milliseconds / 1000);
-    return `${Math.floor(totalSeconds / 60)}m ${String(totalSeconds % 60).padStart(2, "0")}s`;
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return `${hours}h ${String(minutes).padStart(2, "0")}m ${String(seconds).padStart(2, "0")}s`;
 }
 
 function getGoldenSpinState() {

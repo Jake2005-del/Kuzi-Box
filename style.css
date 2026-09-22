@@ -477,7 +477,7 @@ body::before {
 
 .site-footer-inner {
     display: grid;
-    grid-template-columns: minmax(220px, 1fr) auto minmax(220px, 1fr);
+    grid-template-columns: 1fr;
     align-items: center;
     gap: 24px;
     max-width: 1440px;
@@ -493,6 +493,8 @@ body::before {
 
 .site-footer-brand {
     gap: 10px;
+    justify-content: center;
+    justify-self: center;
 }
 
 .site-footer-mark {
@@ -500,16 +502,46 @@ body::before {
     width: 34px;
     height: 34px;
     place-items: center;
+    perspective: 120px;
+    overflow: hidden;
     border: 1px solid rgba(103, 243, 255, 0.5);
     border-radius: 10px;
     color: var(--accent);
     box-shadow: 0 0 18px rgba(103, 243, 255, 0.12);
+    animation: footerMarkGlow 3s ease-in-out infinite;
 }
 
 .site-footer-logo {
     width: 21px;
     height: 21px;
     filter: drop-shadow(0 0 8px rgba(103, 243, 255, 0.35));
+    transform-origin: center;
+    animation: footerLogoFloat 3s ease-in-out infinite;
+}
+
+@keyframes footerLogoFloat {
+    0%, 100% {
+        transform: translateY(0) rotateX(0deg) rotateY(-8deg);
+    }
+    50% {
+        transform: translateY(-3px) rotateX(5deg) rotateY(6deg);
+    }
+}
+
+@keyframes footerMarkGlow {
+    0%, 100% {
+        box-shadow: inset 0 0 8px rgba(103, 243, 255, 0.08);
+    }
+    50% {
+        box-shadow: inset 0 0 14px rgba(103, 243, 255, 0.2);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .site-footer-mark,
+    .site-footer-logo {
+        animation: none;
+    }
 }
 
 .site-footer-brand strong,
@@ -532,6 +564,7 @@ body::before {
 .site-footer-links {
     justify-content: center;
     gap: 18px;
+    justify-self: center;
 }
 
 .site-footer-links a {
@@ -550,7 +583,8 @@ body::before {
 .site-footer-copy {
     color: var(--muted);
     font-size: 0.66rem;
-    text-align: right;
+    text-align: center;
+    justify-self: center;
 }
 
 /* --- HERO BANNER STYLING --- */
@@ -1109,6 +1143,10 @@ body.search-mode .category-section.search-results-section {
     .notification-btn {
         width: 30px;
         height: 30px;
+    }
+
+    .site-footer-links {
+        grid-template-columns: 1fr;
     }
 
     .hero-banner {
@@ -1975,6 +2013,12 @@ body.search-mode .category-section.search-results-section {
     display: none !important; 
 }
 
+@media (max-width: 390px) {
+    .site-footer-links {
+        grid-template-columns: 1fr;
+    }
+}
+
 .site-notification {
     position: fixed;
     right: 24px;
@@ -2760,17 +2804,18 @@ body.search-mode .category-section.search-results-section {
     }
 
     .main-content {
-        padding: 12px 12px 86px;
+        padding: 12px 12px 24px;
     }
 
     .site-footer {
-        margin: 0 12px 78px;
+        margin: 0 12px 24px;
         border-radius: 14px;
         border: 1px solid rgba(103, 243, 255, 0.22);
+        overflow: visible;
     }
 
     .main-content {
-        padding-bottom: 18px;
+        padding-bottom: 24px;
     }
 
     .site-footer-inner {
@@ -2791,6 +2836,7 @@ body.search-mode .category-section.search-results-section {
         grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 8px;
         width: 100%;
+        align-items: stretch;
     }
 
     .site-footer-links a {
@@ -2812,6 +2858,8 @@ body.search-mode .category-section.search-results-section {
     .site-footer-copy {
         text-align: center;
         line-height: 1.45;
+        max-width: 34rem;
+        margin-inline: auto;
     }
 
     .spotlight-ticker {
@@ -3080,7 +3128,7 @@ body.search-mode .category-section.search-results-section {
     }
 
     body {
-        padding-bottom: 85px;
+        padding-bottom: calc(86px + env(safe-area-inset-bottom));
     }
 
     body.mobile-discover .main-content,
@@ -4071,4 +4119,10 @@ body.search-mode .category-section.search-results-section {
 /* Hidden class utility */
 .hidden {
     display: none !important;
+}
+
+@media (max-width: 390px) {
+    .site-footer-links {
+        grid-template-columns: 1fr;
+    }
 }
