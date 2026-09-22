@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kuzi Box - Premium Streaming Platform</title>
+    <link rel="manifest" href="./manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
+    <link rel="apple-touch-icon" sizes="192x192" href="./icon-192.png">
+    <meta name="theme-color" content="#0f172a">
+    <link rel="stylesheet" href="./style.css?v=39">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <!-- Supabase JS Client Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+    <!-- Master Header Navigation -->
+    <header class="navbar">
+        <div class="brand">
+            <svg class="brand-svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+            </svg>
+            <span class="brand-text">Kuzi Box</span>
+        </div>
+        
+        <div class="search-container">
+            <input type="search" id="searchInput" name="movie-search" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Search movies, anime, dramas (min. 3 chars)...">
+        </div>
+
+        <div class="header-controls" id="headerControls">
+            <div id="authButtonsGroup" class="auth-group">
+                <button class="btn btn-secondary" id="openLoginModal">🔐 Login</button>
+                <button class="btn btn-primary" id="openSignupModal">✨ Sign Up</button>
+            </div>
+
+            <div id="userProfile" class="profile-group hidden">
+                <button class="user-badge" id="openDrawerBtn" aria-label="Open profile menu">
+                    <span class="profile-icon">👤</span>
+                    <span id="userAvatarTitle">User</span>
+                </button>
+                <button class="notification-btn" id="notificationBtn" aria-label="Notifications" title="Notifications">
+                    <span aria-hidden="true">🔔</span>
+                    <span class="notification-count hidden" id="notificationCount">0</span>
+                </button>
+            </div>
+
+            <button class="btn btn-vault" id="vaultAnchorBtn" style="display: inline-flex; align-items: center; gap: 8px;">
+                <svg class="coin-box-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="KuziCoin">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                    <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                </svg>
+                <span>Reward</span>
+                <span class="desktop-reward-balance" aria-hidden="true"><span id="navBalance">137</span> KuziCoin</span>
+            </button>
+            <button class="btn downloads-nav-btn" id="downloadsAnchorBtn" type="button" aria-label="Open downloads">
+                <span aria-hidden="true">⇩</span>
+                <span>Downloads</span>
+            </button>
+        </div>
+    </header>
+
+    <div class="mobile-pwa-header" aria-label="Mobile top bar">
+        <div class="mobile-brand">
+            <svg class="brand-svg" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+            </svg>
+            <span>Kuzi Box</span>
+        </div>
+        <div class="mobile-header-actions">
+            <button class="mobile-top-icon" id="mobileHeaderSearchBtn" type="button" aria-label="Search">⌕</button>
+            <button class="mobile-top-icon" id="mobileHeaderNotificationBtn" type="button" aria-label="Notifications">
+                <span>🔔</span>
+                <span class="notification-count hidden" id="mobileNotificationCount">0</span>
+            </button>
+            <button class="mobile-user-avatar" id="mobileUserAvatarBtn" type="button" aria-label="Open profile">👤</button>
+        </div>
+    </div>
+
+    <div class="profile-dropdown hidden" id="profileDropdownMenu" aria-label="Profile menu">
+        <button class="dropdown-item" type="button" data-profile-action="rewards">🏆 Rewards</button>
+        <button class="dropdown-item" type="button" data-profile-action="notifications">🔔 Notifications</button>
+        <button class="dropdown-item" type="button" data-profile-action="profile">👤 Profile Settings</button>
+    </div>
+
+    <div class="mobile-search-overlay hidden" id="mobileSearchOverlay" aria-hidden="true">
+        <div class="mobile-search-panel">
+            <div class="mobile-search-header">
+                <span>Search</span>
+                <button class="mobile-search-close" id="mobileSearchClose" type="button" aria-label="Close search">&times;</button>
+            </div>
+            <input type="search" id="mobileSearchInput" placeholder="Search titles, shows, anime..." autocomplete="off" />
+        </div>
+    </div>
+
+    <nav class="mobile-bottom-nav" aria-label="Mobile app navigation">
+        <button class="mobile-nav-item active" type="button" data-mobile-tab="home">
+            <span aria-hidden="true">⌂</span>
+            <span>Home</span>
+        </button>
+        <button class="mobile-nav-item" type="button" data-mobile-tab="discover">
+            <span aria-hidden="true">◌</span>
+            <span>Discover</span>
+        </button>
+        <button class="mobile-nav-item" type="button" data-mobile-tab="rewards">
+            <span aria-hidden="true">★</span>
+            <span>Rewards</span>
+        </button>
+        <button class="mobile-nav-item" type="button" data-mobile-tab="auth">
+            <span aria-hidden="true" data-mobile-auth-icon>⎈</span>
+            <span data-mobile-auth-label>Login</span>
+        </button>
+    </nav>
+
+    <!-- Live Spotlight Marquee Bar -->
+    <div class="spotlight-ticker">
+        <div class="ticker-badge">🔴 LIVE UPDATE</div>
+        <div class="ticker-wrap">
+            <div class="ticker-move" id="tickerContent">
+                <span>✦ Fresh picks are live: discover your next favorite story.</span>
+                <span>◈ Kuzi Box premieres, rewards and new arrivals are waiting in your vault.</span>
+                <span>★ Tonight’s spotlight: premium worlds, unforgettable characters.</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Drawer / Profile Panel -->
+    <div class="drawer-overlay hidden" id="drawerOverlay">
+        <div class="glass-drawer">
+            <button class="close-modal-btn" id="closeDrawerBtn">&times;</button>
+            <div class="drawer-heading">
+                <div class="drawer-avatar">👤</div>
+                <div>
+                    <p class="drawer-kicker">KUZI BOX ACCOUNT</p>
+                    <h3>User Profile &amp; Settings</h3>
+                </div>
+            </div>
+            <div class="drawer-content">
+                <div class="profile-stats">
+                    <div class="profile-stat"><span>Email</span><strong id="drawerEmail">-</strong></div>
+                    <div class="profile-stat"><span>KuziCoin Balance</span><strong><span id="drawerCoins">10</span> KC</strong></div>
+                    <div class="profile-stat"><span>VIP Status</span><strong id="drawerVip" class="vip-status">Inactive</strong></div>
+                </div>
+
+                <div class="library-panel">
+                    <div class="library-tabs" role="tablist" aria-label="Your library">
+                        <button class="library-tab active" type="button" data-library-tab="watchlist">♡ Watchlist <span id="watchlistCount">0</span></button>
+                        <button class="library-tab" type="button" data-library-tab="history">◷ History <span id="historyCount">0</span></button>
+                    </div>
+                    <div id="watchlistLibrary" class="library-grid" role="tabpanel"></div>
+                    <div id="historyLibrary" class="library-grid hidden" role="tabpanel"></div>
+                </div>
+
+                <div class="drawer-section">
+                    <h4>⚙️ Viewing Preferences</h4>
+                <label class="setting-toggle">
+                    <span>Child Mode</span>
+                    <input type="checkbox" id="childModeToggle">
+                    <span class="toggle-track"></span>
+                </label>
+                <p class="setting-hint">Hide mature themes and keep recommendations family-friendly.</p>
+                </div>
+
+                <div class="drawer-section referral-section">
+                    <h4>🔗 Your Referral Link</h4>
+                <div class="ref-box">
+                    <input type="text" id="refLinkInput" readonly>
+                    <button class="btn btn-primary" id="copyRefBtn">📋 Copy</button>
+                </div>
+                </div>
+                <button class="btn btn-danger" id="logoutBtn">🚪 Logout</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay hidden" id="notificationsModal">
+        <div class="glass-modal notifications-box">
+            <button class="close-modal-btn" id="closeNotificationsBtn">&times;</button>
+            <div class="notifications-heading">
+                <h2>◈ Kuzi Box Updates</h2>
+                <button class="notifications-clear-btn" id="clearNotificationsBtn" type="button">Clear all</button>
+            </div>
+            <div id="notificationsList" class="notifications-list">
+                <p class="empty-notifications">Your latest rewards and premieres will appear here.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Catalog Container with Hero Banner & Premium Category Rows -->
+    <main class="main-content">
+        <section class="hero-banner" id="heroBanner" role="button" tabindex="0" aria-label="Open featured title">
+            <div class="hero-backdrop" id="heroBackdrop"></div>
+            <div class="hero-gradient-overlay"></div>
+            <div class="hero-content">
+                <span class="hero-kicker">Top Pick</span>
+                <h1 id="heroTitle">Featured Title</h1>
+                <div class="hero-meta">
+                    <span id="heroRating" class="pill rating-pill">⭐ 0.0</span>
+                    <span id="heroCategory" class="pill">Category</span>
+                </div>
+                <p id="heroSynopsis" class="hero-synopsis">Loading featured content overview...</p>
+            </div>
+        </section>
+
+        <section class="category-section feature-section" data-row-category="latest">
+            <div class="category-header-row">
+                <h3>🆕 Latest</h3>
+                <div class="category-actions">
+                    <div class="view-mode-toggle" role="group" aria-label="Latest view mode">
+                        <button class="view-mode-btn active" type="button" data-view-mode="row" aria-pressed="true">▤ Row</button>
+                        <button class="view-mode-btn" type="button" data-view-mode="grid" aria-pressed="false">▦ Grid</button>
+                    </div>
+                    <button class="view-more-link" type="button" data-more-category="latest">More &gt;</button>
+                </div>
+            </div>
+            <div class="movie-row-grid" id="latestGrid"></div>
+        </section>
+
+        <section class="category-section feature-section" data-row-category="trending">
+            <div class="category-header-row">
+                <h3>🔥 Trending</h3>
+                <div class="category-actions">
+                    <div class="view-mode-toggle" role="group" aria-label="Trending view mode">
+                        <button class="view-mode-btn active" type="button" data-view-mode="row" aria-pressed="true">▤ Row</button>
+                        <button class="view-mode-btn" type="button" data-view-mode="grid" aria-pressed="false">▦ Grid</button>
+                    </div>
+                    <button class="view-more-link" type="button" data-more-category="trending">More &gt;</button>
+                </div>
+            </div>
+            <div class="movie-row-grid" id="trendingGrid"></div>
+        </section>
+
+        <section class="category-section" data-row-category="cdrama">
+            <div class="category-header-row">
+                <h3>🇨🇳 C-Drama</h3>
+                <div class="category-actions">
+                    <div class="view-mode-toggle" role="group" aria-label="C-Drama view mode">
+                        <button class="view-mode-btn active" type="button" data-view-mode="row" aria-pressed="true">▤ Row</button>
+                        <button class="view-mode-btn" type="button" data-view-mode="grid" aria-pressed="false">▦ Grid</button>
+                    </div>
+                    <button class="view-more-link" type="button" data-more-category="cdrama">More &gt;</button>
+                </div>
+            </div>
+            <div class="movie-row-grid" id="cdramaGrid"></div>
+        </section>
+
+        <section class="category-section" data-row-category="kdrama">
+            <div class="category-header-row">
+                <h3>🇰🇷 K-Drama</h3>
+                <div class="category-actions">
+                    <div class="view-mode-toggle" role="group" aria-label="K-Drama view mode">
+                        <button class="view-mode-btn active" type="button" data-view-mode="row" aria-pressed="true">▤ Row</button>
+                        <button class="view-mode-btn" type="button" data-view-mode="grid" aria-pressed="false">▦ Grid</button>
+                    </div>
+                    <button class="view-more-link" type="button" data-more-category="kdrama">More &gt;</button>
+                </div>
+            </div>
+            <div class="movie-row-grid" id="kdramaGrid"></div>
+        </section>
+
+        <section class="category-section" data-row-category="shows">
+            <div class="category-header-row">
+                <h3>📺 TV &amp; Shows</h3>
+                <div class="category-actions">
+                    <div class="view-mode-toggle" role="group" aria-label="TV and Shows view mode">
+                        <button class="view-mode-btn active" type="button" data-view-mode="row" aria-pressed="true">▤ Row</button>
+                        <button class="view-mode-btn" type="button" data-view-mode="grid" aria-pressed="false">▦ Grid</button>
+                    </div>
+                    <button class="view-more-link" type="button" data-more-category="shows">More &gt;</button>
+                </div>
+            </div>
+            <div class="movie-row-grid" id="showsGrid"></div>
+        </section>
+
+        <section class="category-section" data-row-category="anime">
+            <div class="category-header-row">
+                <h3>⚡ Anime</h3>
+                <div class="category-actions">
+                    <div class="view-mode-toggle" role="group" aria-label="Anime view mode">
+                        <button class="view-mode-btn active" type="button" data-view-mode="row" aria-pressed="true">▤ Row</button>
+                        <button class="view-mode-btn" type="button" data-view-mode="grid" aria-pressed="false">▦ Grid</button>
+                    </div>
+                    <button class="view-more-link" type="button" data-more-category="anime">More &gt;</button>
+                </div>
+            </div>
+            <div class="movie-row-grid" id="animeGrid"></div>
+        </section>
+
+        <section class="category-section" data-row-category="southindian">
+            <div class="category-header-row">
+                <h3>🎬 South Indian</h3>
+                <div class="category-actions">
+                    <div class="view-mode-toggle" role="group" aria-label="South Indian view mode">
+                        <button class="view-mode-btn active" type="button" data-view-mode="row" aria-pressed="true">▤ Row</button>
+                        <button class="view-mode-btn" type="button" data-view-mode="grid" aria-pressed="false">▦ Grid</button>
+                    </div>
+                    <button class="view-more-link" type="button" data-more-category="southindian">More &gt;</button>
+                </div>
+            </div>
+            <div class="movie-row-grid" id="southindianGrid"></div>
+        </section>
+
+        <section class="category-section" data-row-category="bollywood">
+            <div class="category-header-row">
+                <h3>🎵 Bollywood</h3>
+                <div class="category-actions">
+                    <div class="view-mode-toggle" role="group" aria-label="Bollywood view mode">
+                        <button class="view-mode-btn active" type="button" data-view-mode="row" aria-pressed="true">▤ Row</button>
+                        <button class="view-mode-btn" type="button" data-view-mode="grid" aria-pressed="false">▦ Grid</button>
+                    </div>
+                    <button class="view-more-link" type="button" data-more-category="bollywood">More &gt;</button>
+                </div>
+            </div>
+            <div class="movie-row-grid" id="bollywoodGrid"></div>
+        </section>
+
+    </main>
+
+    <footer class="site-footer" aria-label="Kuzi Box legal and support links">
+        <div class="site-footer-inner">
+            <div class="site-footer-brand">
+                <span class="site-footer-mark" aria-hidden="true">
+                    <svg class="site-footer-logo" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                        <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                    </svg>
+                </span>
+                <div>
+                    <strong>Kuzi Box</strong>
+                    <span>Your premium watchlist, in one place.</span>
+                </div>
+            </div>
+            <nav class="site-footer-links" aria-label="Legal links">
+                <a href="./Files/dmca.html">DMCA</a>
+                <a href="./Files/privacy.html">Privacy Policy</a>
+                <a href="./Files/terms.html">Terms of Service</a>
+            </nav>
+            <p class="site-footer-copy">&copy; 2026 Kuzi Box. Please use the platform responsibly.</p>
+        </div>
+    </footer>
+
+    <section class="mobile-page-view hidden" id="mobileDiscoverView" aria-label="Discover tab">
+        <div class="mobile-section-shell discover-shell">
+            <button class="mobile-close-tab" type="button" data-close-mobile-tab="home" aria-label="Close discover">&times;</button>
+            <h2>Discover</h2>
+            <p>Trending shows, fresh hits, and curated picks for your next binge.</p>
+
+            <div class="mobile-discover-tabs" role="tablist" aria-label="Discover categories">
+                <button class="mobile-discover-tab active" type="button" data-discover-category="top-picks" aria-selected="true">Top Picks</button>
+                <button class="mobile-discover-tab" type="button" data-discover-category="k-drama" aria-selected="false">K-Drama</button>
+                <button class="mobile-discover-tab" type="button" data-discover-category="anime" aria-selected="false">Anime</button>
+                <button class="mobile-discover-tab" type="button" data-discover-category="movies" aria-selected="false">Movies</button>
+            </div>
+
+            <div class="mobile-discover-content" id="mobileDiscoverContent"></div>
+        </div>
+    </section>
+
+    <section class="mobile-page-view hidden" id="mobileRewardsView" aria-label="Rewards tab">
+        <div class="mobile-section-shell reward-shell">
+            <button class="mobile-close-tab" type="button" data-close-mobile-tab="home" aria-label="Close rewards">&times;</button>
+            <h2>Reward Vault &amp; Station</h2>
+            <div class="mobile-reward-balance-box">
+                <span>Live Balance</span>
+                <strong><span id="mobileRewardBalance">10</span> KuziCoin</strong>
+                <small id="mobileRewardStreak">🔥 0 Days streak</small>
+            </div>
+            <div class="mobile-reward-grid">
+                <span>Daily Check-in</span>
+                <span>Lucky Spin</span>
+                <span>Golden Spin</span>
+                <span>Invite &amp; Earn</span>
+                <span>Watch Mission</span>
+                <span>VIP Access</span>
+            </div>
+            <div class="mobile-reward-streak-action">
+                <button class="btn btn-vault" id="mobileClaimCheckinBtn" type="button">Claim Today's Reward</button>
+                <small id="mobileStreakResetTimer">Daily reset: 24h</small>
+            </div>
+            <div class="mobile-reward-actions">
+                <button class="btn btn-primary mobile-open-vault-btn" id="mobileOpenVaultBtn" type="button">Open Reward Vault</button>
+            </div>
+        </div>
+    </section>
+
+    <section class="mobile-page-view hidden" id="mobileAuthView" aria-label="Login and signup tab">
+        <div class="mobile-section-shell auth-shell">
+            <button class="mobile-close-tab" type="button" data-close-mobile-tab="home" aria-label="Close login and signup">&times;</button>
+            <h2>Login / Signup</h2>
+            <p>Access your account, rewards, watch history, and premium perks.</p>
+
+            <div class="mobile-auth-switch" role="tablist" aria-label="Mobile auth mode">
+                <button class="mobile-auth-mode active" type="button" data-mobile-auth-mode="login" aria-selected="true">Login</button>
+                <button class="mobile-auth-mode" type="button" data-mobile-auth-mode="signup" aria-selected="false">Sign Up</button>
+            </div>
+
+            <div class="mobile-auth-form">
+                <label for="mobileAuthEmail">Email Address</label>
+                <input id="mobileAuthEmail" type="email" placeholder="name@example.com" autocomplete="email">
+
+                <label for="mobileAuthPassword">Password</label>
+                <input id="mobileAuthPassword" type="password" placeholder="••••••••••••" autocomplete="current-password">
+
+                <button class="btn btn-primary mobile-auth-submit" id="mobileAuthSubmit" type="button">Login</button>
+            </div>
+        </div>
+    </section>
+
+    <section class="mobile-page-view hidden" id="mobileDownloadsView" aria-label="Downloads tab">
+        <div class="mobile-section-shell downloads-shell">
+            <button class="mobile-close-tab" type="button" data-close-mobile-tab="home" aria-label="Close downloads">&times;</button>
+            <div class="downloads-heading">
+                <span class="downloads-eyebrow">PERSONAL LIBRARY</span>
+                <h2>Downloads</h2>
+                <p>Your saved offline titles, synced to your Kuzi Box account.</p>
+            </div>
+            <div class="downloads-list" id="mobileDownloadsList"></div>
+        </div>
+    </section>
+
+    <!-- Movie Overview Modal -->
+    <div class="modal-overlay hidden" id="overviewModal">
+        <div class="glass-modal overview-box">
+            <button class="close-modal-btn" id="closeOverviewBtn">&times;</button>
+            <div class="overview-content">
+                <div class="poster-column">
+                    <img id="overviewPoster" src="" alt="Poster">
+                </div>
+                <div class="details-column">
+                    <h2 id="overviewTitle">Movie Title</h2>
+                    <div class="meta-pills">
+                        <span id="overviewRating" class="pill rating-pill">⭐ 0.0</span>
+                        <span id="overviewCategory" class="pill">Category</span>
+                        <span id="overviewCost" class="pill cost-pill">0 KC</span>
+                    </div>
+                    <p id="overviewSynopsis" class="synopsis-text">Synopsis...</p>
+                    <div class="dub-selector-group">
+                        <label for="dubSelect">Audio/Subtitles:</label>
+                        <select id="dubSelect" class="styled-select"></select>
+                    </div>
+                    <div class="action-btn-row">
+                        <button class="btn btn-stream" id="startStreamBtn">▶️ Watch Movie</button>
+                        <button class="btn btn-library" id="toggleWatchlistBtn" type="button">♡ Add to Watchlist</button>
+                        <button class="btn btn-download" id="startDownloadBtn">
+                            ⇩ Save to Downloads
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay hidden" id="downloadsModal">
+        <div class="glass-modal downloads-modal-box">
+            <div class="downloads-modal-heading">
+                <div>
+                    <span class="downloads-eyebrow">PERSONAL LIBRARY</span>
+                    <h2>Downloads</h2>
+                </div>
+                <button class="close-modal-btn" id="closeDownloadsBtn" type="button" aria-label="Close downloads">&times;</button>
+            </div>
+            <p class="downloads-modal-copy">Your saved titles are linked to this account and available on your Kuzi Box devices.</p>
+            <div class="downloads-list" id="downloadsList"></div>
+        </div>
+    </div>
+
+    <!-- Fullscreen Recommendation Popup -->
+    <div class="modal-overlay hidden" id="fullscreenRecommendationModal">
+        <div class="glass-modal fullscreen-recommendation-box">
+            <button class="close-modal-btn" id="closeFullscreenRecommendationBtn">&times;</button>
+            <div class="recommendation-content">
+                <div class="recommendation-icon">
+                    <svg viewBox="0 0 24 24" width="64" height="64" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+                    </svg>
+                </div>
+                <h2>💡 Watch in Fullscreen</h2>
+                <p>For the best ad-free experience with AllDebrid streams, we recommend watching in fullscreen mode.</p>
+                <div class="recommendation-action">
+                    <button class="btn btn-primary" id="goFullscreenBtn">🖥️ Go Fullscreen</button>
+                    <button class="btn btn-secondary" id="continueWatchingBtn">▶️ Continue Watching</button>
+                </div>
+                <p class="recommendation-footnote">You can toggle fullscreen anytime using the button in player controls.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cinema Player Modal -->
+    <div class="modal-overlay hidden" id="playerModal">
+        <div class="glass-modal cinema-box">
+            <div class="cinema-header">
+                <h3 id="cinemaTitle">Streaming Engine</h3>
+                <span class="quality-badge" id="qualityBadge">480p</span>
+                <button class="close-modal-btn" id="closePlayerBtn">&times;</button>
+            </div>
+
+            <!-- Fullscreen Suggestion Banner -->
+            <div class="fullscreen-suggestion-banner hidden" id="fullscreenSuggestionBanner">
+                <div class="banner-content">
+                    <svg class="banner-icon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                        <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+                    </svg>
+                    <div class="banner-text">
+                        <strong>💡 Tip:</strong> Watch in fullscreen for the best ad-free experience with AllDebrid streams.
+                    </div>
+                </div>
+                <button class="banner-close-btn" id="closeSuggestionBanner" aria-label="Close suggestion">&times;</button>
+            </div>
+
+            <div class="cinema-body">
+                <div id="adLockScreen" class="ad-lock-overlay hidden">
+                    <div class="ad-message-box">
+                        <h4>🔒 Sponsor Announcement</h4>
+                        <p>Stream will unlock automatically after the announcement.</p>
+                        <div class="timer-display">Unlocking in <span id="adCountdown">20</span>s...</div>
+                    </div>
+                </div>
+                
+                <!-- Custom Video Player Container -->
+                <div class="premium-player-wrapper" id="premiumPlayerWrapper">
+                    <div class="player-container" id="playerContainer">
+                        <!-- Video Element for AllDebrid Direct Links -->
+                        <video id="premiumVideoPlayer" class="premium-video" preload="metadata" controlsList="nodownload"></video>
+                        
+                        <!-- Player Overlay (hidden on play) -->
+                        <div class="player-overlay" id="playerOverlay">
+                            <div class="player-center-content">
+                                <button class="play-button-large" id="playButtonLarge">
+                                    <svg viewBox="0 0 24 24" width="64" height="64" fill="currentColor">
+                                        <path d="M8 5v14l11-7z"></path>
+                                    </svg>
+                                </button>
+                                <p class="overlay-text" id="overlayText">Click to Play</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Player Controls Bar -->
+                        <div class="player-controls" id="playerControls">
+                            <!-- Progress Bar -->
+                            <div class="progress-container">
+                                <input type="range" id="progressBar" class="progress-bar" value="0" min="0" max="100" step="0.1">
+                                <div class="time-display">
+                                    <span id="currentTime">00:00</span>
+                                    <span class="time-separator">/</span>
+                                    <span id="duration">00:00</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Control Buttons Row -->
+                            <div class="controls-row">
+                                <div class="controls-left">
+                                    <button class="control-btn" id="playPauseBtn" title="Play/Pause">
+                                        <svg class="icon-play" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                                            <path d="M8 5v14l11-7z"></path>
+                                        </svg>
+                                        <svg class="icon-pause hidden" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                                            <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"></path>
+                                        </svg>
+                                    </button>
+                                    
+                                    <div class="volume-control">
+                                        <button class="control-btn" id="volumeBtn" title="Volume">
+                                            <svg class="icon-volume-high" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                                                <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.26 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"></path>
+                                            </svg>
+                                            <svg class="icon-volume-mute hidden" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                                                <path d="M16.6915026,12.4744748 L21.50612381,7.66525721 C22.1654205,7.00604706 22.1654205,5.91039607 21.50612381,5.24894937 C20.8468171,4.58749267 19.7512595,4.58780787 19.0918665,5.24894937 L14.2760854,10.0604706 L9.46026407,5.24894937 C8.80095739,4.58749267 7.70541534,4.58749267 7.04610865,5.24894937 C6.38680197,5.91039607 6.38680197,7.00604706 7.04610865,7.66525721 L11.8619899,12.4744748 L7.04610865,17.2837924 C6.38680197,17.9452206 6.38680197,19.0408716 7.04610865,19.7023183 C7.70541534,20.364171 8.80095739,20.364171 9.46026407,19.7023183 L14.2760854,14.8909969 L19.0918665,19.7023183 C19.7511732,20.364171 20.8467308,20.364171 21.50612381,19.7023183 C22.1654205,19.0408716 22.1654205,17.9452206 21.50612381,17.2837924 L16.6915026,12.4744748 Z"></path>
+                                            </svg>
+                                        </button>
+                                        <input type="range" id="volumeSlider" class="volume-slider" value="100" min="0" max="100">
+                                    </div>
+                                </div>
+                                
+                                <div class="controls-center">
+                                    <span class="live-indicator hidden" id="liveIndicator">● LIVE</span>
+                                </div>
+                                
+                                <div class="controls-right">
+                                    <!-- Quality Selector -->
+                                    <div class="control-menu-wrapper">
+                                        <button class="control-btn menu-btn" id="qualityMenuBtn" title="Quality">
+                                            <span class="quality-text">AUTO</span>
+                                            <svg class="dropdown-icon" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+                                                <polyline points="6 9 12 15 18 9"></polyline>
+                                            </svg>
+                                        </button>
+                                        <div class="control-menu" id="qualityMenu" style="display: none;">
+                                            <div class="menu-options" id="qualityOptions">
+                                                <div class="menu-item" data-quality="auto">Auto</div>
+                                                <div class="menu-item" data-quality="1080">1080p</div>
+                                                <div class="menu-item" data-quality="720">720p</div>
+                                                <div class="menu-item" data-quality="480">480p</div>
+                                                <div class="menu-item" data-quality="360">360p</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Subtitle Selector -->
+                                    <div class="control-menu-wrapper">
+                                        <button class="control-btn menu-btn" id="subtitleMenuBtn" title="Subtitles">
+                                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                                                <rect x="2" y="2" width="20" height="20" rx="2.18"></rect>
+                                                <line x1="7" y1="15" x2="17" y2="15"></line>
+                                                <line x1="7" y1="11" x2="17" y2="11"></line>
+                                            </svg>
+                                            <svg class="dropdown-icon" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+                                                <polyline points="6 9 12 15 18 9"></polyline>
+                                            </svg>
+                                        </button>
+                                        <div class="control-menu" id="subtitleMenu" style="display: none;">
+                                            <div class="menu-options" id="subtitleOptions">
+                                                <div class="menu-item" data-subtitle="off">Off</div>
+                                                <div class="menu-item" data-subtitle="en">English</div>
+                                                <div class="menu-item" data-subtitle="es">Español</div>
+                                                <div class="menu-item" data-subtitle="fr">Français</div>
+                                                <div class="menu-item" data-subtitle="hi">हिन्दी</div>
+                                                <div class="menu-item" data-subtitle="pt">Português</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Audio Selector -->
+                                    <div class="control-menu-wrapper">
+                                        <button class="control-btn menu-btn" id="audioMenuBtn" title="Audio">
+                                            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                                                <path d="M12 3C6.48 3 2 6.82 2 11.5c0 2.26.87 4.35 2.34 5.93.28.36.35.86.15 1.3l-1.4 3.4c-.18.44.07 1 .53 1.23.41.2.85.1 1.1-.25l3.65-4.06c.35-.39.9-.59 1.47-.54 1.48.13 2.9.2 4.34.2 5.52 0 10-3.82 10-8.5S17.52 3 12 3zm0 15c-1.19 0-2.35-.07-3.49-.19.45.5.93.99 1.43 1.44.48.42 1.13.64 1.8.64.67 0 1.32-.22 1.8-.64.5-.45.98-.94 1.43-1.44-1.14.12-2.3.19-3.49.19zm-3-5c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm6 0c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm0-4c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z"></path>
+                                            </svg>
+                                            <svg class="dropdown-icon" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+                                                <polyline points="6 9 12 15 18 9"></polyline>
+                                            </svg>
+                                        </button>
+                                        <div class="control-menu" id="audioMenu" style="display: none;">
+                                            <div class="menu-options" id="audioOptions">
+                                                <div class="menu-item" data-audio="en">English</div>
+                                                <div class="menu-item" data-audio="hi">Hindi</div>
+                                                <div class="menu-item" data-audio="es">Spanish</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Playback Speed -->
+                                    <div class="control-menu-wrapper">
+                                        <button class="control-btn menu-btn" id="speedMenuBtn" title="Speed">
+                                            <span class="speed-text">1x</span>
+                                            <svg class="dropdown-icon" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+                                                <polyline points="6 9 12 15 18 9"></polyline>
+                                            </svg>
+                                        </button>
+                                        <div class="control-menu" id="speedMenu" style="display: none;">
+                                            <div class="menu-options" id="speedOptions">
+                                                <div class="menu-item" data-speed="0.5">0.5x</div>
+                                                <div class="menu-item" data-speed="0.75">0.75x</div>
+                                                <div class="menu-item" data-speed="1">1x</div>
+                                                <div class="menu-item" data-speed="1.25">1.25x</div>
+                                                <div class="menu-item" data-speed="1.5">1.5x</div>
+                                                <div class="menu-item" data-speed="2">2x</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Fullscreen Button -->
+                                    <button class="control-btn" id="fullscreenBtn" title="Fullscreen">
+                                        <svg class="icon-fullscreen" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+                                        </svg>
+                                        <svg class="icon-fullscreen-exit hidden" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M8 8v-3H5m11 0h3v3m0 8v3h3M5 16v3m11-11h3M5 5v3"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Fallback Iframe (for external embed providers) -->
+                <div class="iframe-wrapper" id="iframeWrapper" style="display: none;">
+                    <iframe id="cinemaIframe" src="" title="Kuzi Box video player" frameborder="0" sandbox="allow-scripts allow-same-origin allow-forms allow-presentation" allow="autoplay; fullscreen; picture-in-picture" referrerpolicy="no-referrer" allowfullscreen></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Extended Reward Vault Page Modal -->
+    <div class="modal-overlay hidden" id="vaultModal">
+        <div class="glass-modal vault-box">
+            <div class="vault-header" style="display: flex; align-items: center; justify-content: space-between;">
+              <h2>
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px;">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                        <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                    </svg>
+                    Reward Vault & Station
+                </h2>
+                <button class="close-modal-btn" id="closeVaultBtn">&times;</button>
+            </div>
+            
+            <div class="wallet-status-bar">
+                <div class="balance-card">
+                    <span>Live Balance</span>
+                    <h3 id="vaultBalanceDisplay">10 KuziCoin</h3>
+                </div>
+                <div class="streak-card">
+                    <span>Streak</span>
+                    <h3 id="streakDisplay">🔥 0 Days</h3>
+                </div>
+                <button class="btn btn-vip" id="buyVipBtn">👑 Unlock 7-Day VIP · 50 KuziCoin</button>
+            </div>
+            <div class="vip-status-panel">
+                <p class="vip-countdown" id="vipCountdown">VIP Pass: Not active</p>
+                <p class="vip-dates" id="vipDates">Activation and expiry details will appear here.</p>
+            </div>
+
+            <!-- 7-Day Streak Tracker -->
+            <div class="section-box">
+                <h4>🗓️ 7-Day Daily Check-in Streak</h4>
+                <div class="streak-grid" id="streakGrid"></div>
+                <button class="btn btn-primary" id="claimCheckinBtn">Claim Today's Reward</button>
+                <p class="reward-note" id="streakResetTimer">Daily reset: 24h</p>
+            </div>
+
+            <!-- Lucky Wheel Spin Station -->
+            <div class="section-box spin-section">
+                <h4>🎡 Lucky Spin Wheel (1 Daily Free + 2 Ad Spins)</h4>
+                <div class="spin-container">
+                    <div class="wheel-pointer">▼</div>
+                    <div class="wheel" id="wheel"></div>
+                </div>
+                <button class="btn btn-vault" id="spinWheelBtn">Free Spin Now</button>
+            </div>
+
+            <div class="section-box golden-spin-section">
+                <h4>🏆 Golden Spin</h4>
+                <p class="reward-note">Watch 300 minutes within 24 hours to unlock the golden bonus spin.</p>
+                <div class="golden-spin-wheel-wrap">
+                    <div class="golden-wheel-pointer">▼</div>
+                    <div class="golden-wheel" id="goldenWheel"></div>
+                </div>
+                <p class="watch-progress" id="goldenSpinProgress">0/300 minutes watched in 24 hours</p>
+                <button class="btn btn-golden" id="goldenSpinBtn" disabled>🔒 Golden Spin Locked</button>
+            </div>
+
+            <!-- 3 Commercial Channels -->
+            <div class="reward-stations-list">
+                <div class="station-card">
+                    <div class="station-info">
+                        <h4>🎬 Spotlight Mission</h4>
+                        <p>Complete this featured partner mission to earn +1 KuziCoin.</p>
+                    </div>
+                    <button class="btn btn-reward" id="station1Btn" data-ad-mission>Watch Mission (+1 KuziCoin)</button>
+                </div>
+                <div class="station-card">
+                    <div class="station-info">
+                        <h4>🚀 Launch Mission</h4>
+                        <p>Explore the partner experience and earn +1 KuziCoin.</p>
+                    </div>
+                    <button class="btn btn-reward" id="station2Btn" data-ad-mission>Watch Mission (+1 KuziCoin)</button>
+                </div>
+                <div class="station-card">
+                    <div class="station-info">
+                        <h4>🌟 Discovery Mission</h4>
+                        <p>Discover today’s featured sponsor and earn +1 KuziCoin.</p>
+                    </div>
+                    <button class="btn btn-reward" id="station3Btn" data-ad-mission>Watch Mission (+1 KuziCoin)</button>
+                </div>
+            </div>
+
+            <div class="section-box watch-reward-section">
+                <h4>🎁 Watch-Time Rewards</h4>
+                <p class="reward-note">Watch time is counted while the player is active. Claim each reward once.</p>
+                <div class="watch-reward-grid">
+                    <button class="btn btn-reward watch-reward-btn" id="claim30MinBtn" data-watch-reward="1800" data-reward-coins="2">30 Minutes <span>+2 KuziCoin</span></button>
+                    <button class="btn btn-reward watch-reward-btn" id="claim1HourBtn" data-watch-reward="3600" data-reward-coins="3">1 Hour <span>+3 KuziCoin</span></button>
+                    <button class="btn btn-reward watch-reward-btn" id="claim2HourBtn" data-watch-reward="7200" data-reward-coins="5">2 Hours <span>+5 KuziCoin</span></button>
+                </div>
+                <p class="watch-progress" id="watchTimeProgress">Watch time: 0 minutes</p>
+                <p class="reward-note" id="watchRewardResetTimer">Daily reset: 24h</p>
+            </div>
+
+            <div class="section-box referral-reward-section">
+                <h4>🔗 Invite &amp; Earn</h4>
+                <div class="referral-reward-status" id="referralRewardStatus">Share your referral link to start growing Kuzi Box.</div>
+                <button class="btn btn-primary" id="copyRewardReferralBtn">📋 Copy Referral Link</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Professional Auth Modal Overlay -->
+    <div class="modal-overlay hidden" id="authModal">
+        <div class="glass-modal auth-modal-box" style="max-width: 400px; width: 100%; padding: 30px; position: relative; background: #1f2833; border-radius: 16px; border: 1px solid rgba(102, 252, 241, 0.2);">
+            <button class="close-modal-btn" id="closeAuthModal" style="position: absolute; top: 15px; right: 15px; background: none; border: none; color: #fff; font-size: 1.5rem; cursor: pointer;">&times;</button>
+            
+            <div class="auth-header" style="text-align: center; margin-bottom: 20px;">
+                <h2 id="authModalTitle" style="color: #66fcf1; margin-bottom: 5px;">Login to Kuzi Box</h2>
+                <p style="color: #c5c6c7; font-size: 0.9rem;">Access your streaming & rewards</p>
+            </div>
+
+            <div class="auth-form-body">
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; color: #c5c6c7; font-size: 0.85rem;">Email Address</label>
+                    <input type="email" id="authEmail" placeholder="name@example.com" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: #0b0c10; color: #fff; outline: none;">
+                </div>
+
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 5px; color: #c5c6c7; font-size: 0.85rem;">Password</label>
+                    <input type="password" id="authPassword" placeholder="••••••••••••" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: #0b0c10; color: #fff; outline: none;">
+                </div>
+
+                <button class="btn btn-primary" id="modalActionBtn" style="width: 100%; padding: 12px; font-weight: bold; cursor: pointer;">Login</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js?v=36"></script>
+    <script>
+        if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+            navigator.serviceWorker.register('./sw.js')
+                .then(() => console.log('Service Worker Registered Successfully!'))
+                .catch((err) => console.log('Service Worker Failed', err));
+        } else {
+            console.log('Service Worker disabled for file:// origin; serve the app over localhost or HTTPS for PWA install support.');
+        }
+    </script>
+</body>
+</html>
