@@ -479,10 +479,10 @@ body::before {
     display: grid;
     grid-template-columns: 1fr;
     align-items: center;
-    gap: 24px;
+    gap: 18px;
     max-width: 1440px;
     margin: 0 auto;
-    padding: 22px 24px;
+    padding: 30px 24px 26px;
 }
 
 .site-footer-brand,
@@ -492,9 +492,15 @@ body::before {
 }
 
 .site-footer-brand {
-    gap: 10px;
+    flex-direction: column;
+    gap: 8px;
     justify-content: center;
     justify-self: center;
+    text-align: center;
+}
+
+.site-footer-brand div {
+    text-align: center;
 }
 
 .site-footer-mark {
@@ -521,10 +527,10 @@ body::before {
 
 @keyframes footerLogoFloat {
     0%, 100% {
-        transform: translateY(0) rotateX(0deg) rotateY(-8deg);
+        transform: translateY(2px) rotateX(0deg) rotateY(-8deg);
     }
     50% {
-        transform: translateY(-3px) rotateX(5deg) rotateY(6deg);
+        transform: translateY(-2px) rotateX(5deg) rotateY(6deg);
     }
 }
 
@@ -565,6 +571,7 @@ body::before {
     justify-content: center;
     gap: 18px;
     justify-self: center;
+    flex-wrap: wrap;
 }
 
 .site-footer-links a {
@@ -878,6 +885,13 @@ body.search-mode .category-section.search-results-section {
         gap: 6px;
         padding: 7px 10px;
         font-size: 0.72rem;
+    }
+
+    #installAppBtn {
+        padding: 7px 8px;
+        gap: 4px;
+        font-size: 0.68rem;
+        white-space: nowrap;
     }
 }
 
@@ -4125,4 +4139,9 @@ body.search-mode .category-section.search-results-section {
     .site-footer-links {
         grid-template-columns: 1fr;
     }
+}
+
+html {
+    max-width: 100%;
+    overflow-x: hidden;
 }

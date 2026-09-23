@@ -8,7 +8,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
     <link rel="apple-touch-icon" sizes="192x192" href="./icon-192.png">
     <meta name="theme-color" content="#0f172a">
-    <link rel="stylesheet" href="./style.css?v=46">
+    <link rel="stylesheet" href="./style.css?v=51">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
     <!-- Supabase JS Client Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -60,6 +60,10 @@
                 <span aria-hidden="true">⇩</span>
                 <span>Downloads</span>
             </button>
+            <button class="btn downloads-nav-btn hidden" id="installAppBtn" type="button" aria-label="Install Kuzi Box">
+                <span aria-hidden="true">⇩</span>
+                <span>Install App</span>
+            </button>
         </div>
     </header>
 
@@ -73,6 +77,7 @@
             <span>Kuzi Box</span>
         </div>
         <div class="mobile-header-actions">
+            <button class="mobile-top-icon hidden" id="installAppBtnMobile" type="button" aria-label="Install Kuzi Box" title="Install Kuzi Box">⇩</button>
             <button class="mobile-top-icon" id="mobileHeaderSearchBtn" type="button" aria-label="Search">⌕</button>
             <button class="mobile-top-icon" id="mobileHeaderNotificationBtn" type="button" aria-label="Notifications">
                 <span>🔔</span>
@@ -818,15 +823,6 @@
         </div>
     </div>
 
-    <script src="script.js?v=38"></script>
-    <script>
-        if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-            navigator.serviceWorker.register('./sw.js')
-                .then(() => console.log('Service Worker Registered Successfully!'))
-                .catch((err) => console.log('Service Worker Failed', err));
-        } else {
-            console.log('Service Worker disabled for file:// origin; serve the app over localhost or HTTPS for PWA install support.');
-        }
-    </script>
+    <script src="script.js?v=40"></script>
 </body>
 </html>

@@ -36,23 +36,32 @@ function getDailySpinStorageKey() {
 }
 
 function setupInstallPrompt() {
+    const installButtons = [
+        document.getElementById("installAppBtn"),
+        document.getElementById("installAppBtnMobile")
+    ].filter(Boolean);
     window.addEventListener("beforeinstallprompt", (event) => {
         event.preventDefault();
         deferredInstallPrompt = event;
+        installButtons.forEach(button => button.classList.remove("hidden"));
         window.dispatchEvent(new Event("kuziinstallavailable"));
     });
 
     window.addEventListener("appinstalled", () => {
         deferredInstallPrompt = null;
+        installButtons.forEach(button => button.classList.add("hidden"));
     });
 
     window.promptInstallApp = async () => {
         if (!deferredInstallPrompt) return false;
         const installPrompt = deferredInstallPrompt;
         deferredInstallPrompt = null;
+        installButtons.forEach(button => button.classList.add("hidden"));
         await installPrompt.prompt();
         return (await installPrompt.userChoice).outcome === "accepted";
     };
+
+    installButtons.forEach(button => button.addEventListener("click", () => window.promptInstallApp()));
 }
 
 function registerServiceWorker() {
