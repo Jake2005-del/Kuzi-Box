@@ -1358,6 +1358,7 @@ let isSpinning = false;
 let currentRotation = 0;
 let adCooldownInterval = null;
 let spinCooldownTimeout = null;
+let spinValidationUnavailable = false;
 
 function getServerNow() {
     return Date.now() + serverClockOffsetMs;
@@ -1425,6 +1426,11 @@ window.addEventListener("kuzi-library-state-changed", () => renderLibraryUI());
 function updateSpinButtonUI() {
     const spinBtn = document.getElementById("spinWheelBtn");
     if (!spinBtn) return;
+    if (spinValidationUnavailable) {
+        spinBtn.innerText = "Spin temporarily unavailable";
+        spinBtn.disabled = true;
+        return;
+    }
     const spinCooldown = getDailySpinRemainingMs();
     if (userSession.dailySpinCount >= 3 && spinCooldown === 0) {
         userSession.dailySpinCount = 0;
@@ -1485,12 +1491,22 @@ function restoreSmartlinkButton(button, state) {
     button.removeAttribute("aria-busy");
 }
 
-function completeSmartlinkReward(button, state) {
+async function completeSmartlinkReward(button, state) {
     restoreSmartlinkButton(button, state);
 
-    button.dataset.smartlinkBypass = "true";
-    button.click();
-    delete button.dataset.smartlinkBypass;
+    let rewardStarted = true;
+    if (isLuckySpinButton(button)) {
+        rewardStarted = await runLuckySpin();
+    } else {
+        button.dataset.smartlinkBypass = "true";
+        button.click();
+        delete button.dataset.smartlinkBypass;
+    }
+
+    if (!rewardStarted) {
+        restoreSmartlinkButton(button, state);
+        return;
+    }
 
     creditSmartlinkReward();
     button.innerText = "Claimed! 🎉";
@@ -1542,6 +1558,17 @@ function isLuckySpinButton(button) {
     return button?.id === "spinWheelBtn" || button?.id === "spin-btn";
 }
 
+async function runLuckySpin() {
+    if (!userSession.id) {
+        alert("Please log in to access the Lucky Wheel.");
+        return false;
+    }
+    if (isSpinning) return false;
+    if (!(await claimServerSpin())) return false;
+    executeSpinProcess();
+    return true;
+}
+
 async function claimServerSpin() {
     if (!supabaseClient || !userSession.id) return false;
 
@@ -1554,6 +1581,13 @@ async function claimServerSpin() {
 
     const result = Array.isArray(data) ? data[0] : data;
     setServerClock(result?.server_now);
+    if (!result || !Number.isFinite(Number(result.spin_count))) {
+        spinValidationUnavailable = true;
+        updateSpinButtonUI();
+        console.error("Lucky Spin database migration is not active: spin_count is missing from claim_lucky_spin().");
+        alert("Lucky Spin needs the latest database update. Please try again after the site database is updated.");
+        return false;
+    }
     if (result?.last_spin_time) userSession.lastSpinTime = result.last_spin_time;
     if (result?.spin_count !== undefined) userSession.dailySpinCount = Number(result.spin_count);
     if (result?.spin_window_started_at) userSession.dailySpinWindowStartedAt = result.spin_window_started_at;
@@ -1565,12 +1599,7 @@ async function claimServerSpin() {
     return true;
 }
 
-document.getElementById("spinWheelBtn").addEventListener("click", async () => {
-    if (!userSession.id) return alert("Please log in to access the Lucky Wheel.");
-    if (isSpinning) return;
-    if (!(await claimServerSpin())) return;
-    executeSpinProcess();
-});
+document.getElementById("spinWheelBtn").addEventListener("click", runLuckySpin);
 
 function formatCooldown(milliseconds) {
     const totalSeconds = Math.ceil(milliseconds / 1000);
