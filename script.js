@@ -4,7 +4,7 @@ const SUPABASE_ANON_KEY = 'sb_publishable_YvfEOPqg2IEVqzQ-p4Fylw_C2AeEkdj';
 
 const supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
-let userSession = { id: null, email: "", username: "", kuziCoins: 10, isVip: false, vipActivatedAt: null, vipExpiresAt: null, streakCount: 0, refCode: "", lastSpinTime: null };
+let userSession = { id: null, email: "", username: "", kuziCoins: 10, isVip: false, vipActivatedAt: null, vipExpiresAt: null, streakCount: 0, refCode: "", lastSpinTime: null, dailySpinCount: 0, dailySpinWindowStartedAt: null };
 let activeMovie = null;
 let activeCategoryTag = "Movie";
 let activeServer = 'alldebrid';
@@ -1001,10 +1001,27 @@ async function fetchUserProfile(user) {
         userSession.vipActivatedAt = data.vip_activated_at || null;
         userSession.vipExpiresAt = data.vip_expires_at || null;
         userSession.lastSpinTime = data.last_spin_time || null;
+        userSession.dailySpinCount = Number(data.daily_spin_count || 0);
+        userSession.dailySpinWindowStartedAt = data.daily_spin_window_started_at || null;
+        if (!data.daily_spin_count && userSession.lastSpinTime && Date.parse(userSession.lastSpinTime) > Date.now() - DAILY_SPIN_INTERVAL_MS) {
+            userSession.dailySpinCount = 1;
+            userSession.dailySpinWindowStartedAt = userSession.lastSpinTime;
+        }
         const vipExpiryKey = `kuzi_vip_expires_${user.id}`;
         const vipActivatedKey = `kuzi_vip_activated_${user.id}`;
-        let vipExpiry = Date.parse(userSession.vipExpiresAt || "") || Number(localStorage.getItem(vipExpiryKey) || 0);
-        const vipActivatedAt = Date.parse(userSession.vipActivatedAt || "") || Number(localStorage.getItem(vipActivatedKey) || 0);
+        let vipExpiry = Date.parse(userSession.vipExpiresAt || "") || readStoredVipTimestamp(vipExpiryKey);
+        const vipActivatedAt = Date.parse(userSession.vipActivatedAt || "") || readStoredVipTimestamp(vipActivatedKey);
+        const hasServerVipExpiry = Boolean(userSession.vipExpiresAt);
+        if (!userSession.isVip && vipExpiry > Date.now()) {
+            userSession.isVip = true;
+            if (!hasServerVipExpiry && supabaseClient) {
+                await supabaseClient.from("profiles").update({
+                    is_vip: true,
+                    vip_activated_at: vipActivatedAt ? new Date(vipActivatedAt).toISOString() : new Date().toISOString(),
+                    vip_expires_at: new Date(vipExpiry).toISOString()
+                }).eq("id", user.id);
+            }
+        }
         const legacyVipActivatedValue = user.user_metadata?.kuzi_vip_activated_at;
         const serverVipActivatedAt = Number.isFinite(Number(legacyVipActivatedValue))
             ? Number(legacyVipActivatedValue)
@@ -1116,8 +1133,15 @@ function updateVipStatusLabel(statusText = null) {
         status.innerText = statusText;
         return;
     }
-    const expiry = Date.parse(userSession.vipExpiresAt || "") || Number(localStorage.getItem(`kuzi_vip_expires_${userSession.id}`) || 0);
+    const expiry = Date.parse(userSession.vipExpiresAt || "") || readStoredVipTimestamp(`kuzi_vip_expires_${userSession.id}`);
     status.innerText = userSession.isVip && (!expiry || Date.now() < expiry) ? "Active" : "Inactive";
+}
+
+function readStoredVipTimestamp(key) {
+    const value = localStorage.getItem(key);
+    if (!value) return 0;
+    const numericValue = Number(value);
+    return Number.isFinite(numericValue) ? numericValue : (Date.parse(value) || 0);
 }
 
 async function saveVipActivation(accountId = userSession.id) {
@@ -1146,8 +1170,8 @@ function updateVipCountdown() {
     const button = document.getElementById("buyVipBtn");
     const dates = document.getElementById("vipDates");
     if (!countdown || !button) return;
-    const expiry = Date.parse(userSession.vipExpiresAt || "") || Number(localStorage.getItem(`kuzi_vip_expires_${userSession.id}`) || 0);
-    const activatedAt = Date.parse(userSession.vipActivatedAt || "") || Number(localStorage.getItem(`kuzi_vip_activated_${userSession.id}`) || 0);
+    const expiry = Date.parse(userSession.vipExpiresAt || "") || readStoredVipTimestamp(`kuzi_vip_expires_${userSession.id}`);
+    const activatedAt = Date.parse(userSession.vipActivatedAt || "") || readStoredVipTimestamp(`kuzi_vip_activated_${userSession.id}`);
     if (!userSession.isVip || !expiry) {
         const statusText = userSession.isVip ? "Active (expiry not recorded)" : "Inactive";
         countdown.innerText = userSession.isVip ? "VIP Pass: Active, expiry not recorded" : "VIP Pass: Not active";
@@ -1345,9 +1369,10 @@ function setServerClock(serverTimestamp) {
 }
 
 function getDailySpinRemainingMs() {
-    const lastSpinTime = Date.parse(userSession.lastSpinTime || "");
-    if (!Number.isFinite(lastSpinTime)) return 0;
-    return Math.max(0, lastSpinTime + DAILY_SPIN_INTERVAL_MS - getServerNow());
+    if (userSession.dailySpinCount < 3) return 0;
+    const windowStartedAt = Date.parse(userSession.dailySpinWindowStartedAt || userSession.lastSpinTime || "");
+    if (!Number.isFinite(windowStartedAt)) return 0;
+    return Math.max(0, windowStartedAt + DAILY_SPIN_INTERVAL_MS - getServerNow());
 }
 
 function refreshSharedRewardState(type) {
@@ -1400,14 +1425,23 @@ window.addEventListener("kuzi-library-state-changed", () => renderLibraryUI());
 function updateSpinButtonUI() {
     const spinBtn = document.getElementById("spinWheelBtn");
     if (!spinBtn) return;
+    const spinCooldown = getDailySpinRemainingMs();
+    if (userSession.dailySpinCount >= 3 && spinCooldown === 0) {
+        userSession.dailySpinCount = 0;
+        userSession.dailySpinWindowStartedAt = null;
+    }
     if (isSpinning) {
         spinBtn.innerText = "Spin in progress...";
         spinBtn.disabled = true;
-    } else if (getDailySpinRemainingMs() > 0) {
-        spinBtn.innerText = `Spin available in ${formatCooldown(getDailySpinRemainingMs())}`;
+    } else if (userSession.dailySpinCount >= 3 && spinCooldown > 0) {
+        spinBtn.innerText = `Spin available in ${formatCooldown(spinCooldown)}`;
         spinBtn.disabled = true;
+    } else if (userSession.dailySpinCount === 0) {
+        spinBtn.innerText = "Spin Now (Free)";
+        spinBtn.disabled = false;
     } else {
-        spinBtn.innerText = "Spin Now";
+        const adSpinsRemaining = 3 - userSession.dailySpinCount;
+        spinBtn.innerText = `Watch Ad to Spin (${adSpinsRemaining} left)`;
         spinBtn.disabled = false;
     }
 }
@@ -1429,6 +1463,85 @@ function updateAdMissionUI() {
     });
 }
 
+const SMARTLINK_URL = "https://www.profitableratecpmnetwork.com/ty8n0p9bt?key=290f0ee761a626142d63187a887735b5";
+const SMARTLINK_REWARD_COINS = 2;
+const SMARTLINK_DELAY_MS = 5000;
+const SMARTLINK_BUTTON_SELECTOR = ".reward-btn, .btn-reward, #spin-btn, #spinWheelBtn, #golden-spin-btn, #goldenSpinBtn, #watch-earn-btn";
+const activeSmartlinkRewards = new WeakMap();
+
+function creditSmartlinkReward() {
+    syncCoinsToDatabase(userSession.kuziCoins + SMARTLINK_REWARD_COINS);
+    addNotification(`Ad reward claimed: +${SMARTLINK_REWARD_COINS} KuziCoin.`);
+}
+
+function restoreSmartlinkButton(button, state) {
+    button.innerHTML = state.originalHTML;
+    button.disabled = state.wasDisabled;
+    if (state.originalAriaDisabled === null) {
+        button.removeAttribute("aria-disabled");
+    } else {
+        button.setAttribute("aria-disabled", state.originalAriaDisabled);
+    }
+    button.removeAttribute("aria-busy");
+}
+
+function completeSmartlinkReward(button, state) {
+    restoreSmartlinkButton(button, state);
+
+    button.dataset.smartlinkBypass = "true";
+    button.click();
+    delete button.dataset.smartlinkBypass;
+
+    creditSmartlinkReward();
+    button.innerText = "Claimed! 🎉";
+    window.setTimeout(() => {
+        if (button.isConnected) restoreSmartlinkButton(button, state);
+    }, 1500);
+}
+
+function handleSmartlinkRewardClick(event) {
+    const button = event.target.closest?.(SMARTLINK_BUTTON_SELECTOR);
+    if (!button || button.dataset.smartlinkBypass === "true") return;
+    if (isLuckySpinButton(button) && userSession.dailySpinCount === 0) return;
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+
+    if (activeSmartlinkRewards.has(button)) return;
+
+    const state = {
+        originalHTML: button.innerHTML,
+        wasDisabled: button.disabled,
+        originalAriaDisabled: button.getAttribute("aria-disabled")
+    };
+    activeSmartlinkRewards.set(button, state);
+
+    window.open(SMARTLINK_URL, "_blank");
+    button.disabled = true;
+    button.setAttribute("aria-busy", "true");
+
+    let remainingSeconds = SMARTLINK_DELAY_MS / 1000;
+    button.innerText = `Processing Reward... ${remainingSeconds}s`;
+    const countdown = window.setInterval(() => {
+        remainingSeconds -= 1;
+        if (remainingSeconds > 0) button.innerText = `Processing Reward... ${remainingSeconds}s`;
+    }, 1000);
+
+    window.setTimeout(() => {
+        window.clearInterval(countdown);
+        activeSmartlinkRewards.delete(button);
+        completeSmartlinkReward(button, state);
+    }, SMARTLINK_DELAY_MS);
+}
+
+function bindSmartlinkRewards() {
+    document.addEventListener("click", handleSmartlinkRewardClick, true);
+}
+
+function isLuckySpinButton(button) {
+    return button?.id === "spinWheelBtn" || button?.id === "spin-btn";
+}
+
 async function claimServerSpin() {
     if (!supabaseClient || !userSession.id) return false;
 
@@ -1442,6 +1555,8 @@ async function claimServerSpin() {
     const result = Array.isArray(data) ? data[0] : data;
     setServerClock(result?.server_now);
     if (result?.last_spin_time) userSession.lastSpinTime = result.last_spin_time;
+    if (result?.spin_count !== undefined) userSession.dailySpinCount = Number(result.spin_count);
+    if (result?.spin_window_started_at) userSession.dailySpinWindowStartedAt = result.spin_window_started_at;
     if (!result?.allowed) {
         updateSpinButtonUI();
         alert(`Your next spin is available in ${formatCooldown(getDailySpinRemainingMs())}.`);
@@ -1578,6 +1693,7 @@ function executeSpinProcess() {
 
 function bindEventListeners() {
     bindViewModeControls();
+    bindSmartlinkRewards();
     updateAdMissionUI();
     clearInterval(adCooldownInterval);
     adCooldownInterval = setInterval(() => {

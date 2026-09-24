@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kuzibox-cache-v76';
+const CACHE_NAME = 'kuzibox-cache-v78';
 const STATIC_ASSETS = [
   './',
   './index.html',
